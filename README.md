@@ -78,7 +78,7 @@ pipeline.process("examples/sample_story.txt", output_dir="output/")
 
 ## 定时优化任务
 
-项目已配置自动优化任务，每30分钟执行一次：
+项目已配置自动优化任务，每15分钟执行一次：
 
 ```bash
 # 启动定时任务

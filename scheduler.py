@@ -17,7 +17,7 @@ PROJECT_DIR = Path(__file__).parent
 PID_FILE = PROJECT_DIR / ".optimizer.pid"
 LOG_FILE = PROJECT_DIR / "logs" / "scheduler.log"
 
-INTERVAL_MINUTES = 30
+INTERVAL_MINUTES = 15
 
 
 def log(message: str):
