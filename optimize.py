@@ -28,23 +28,9 @@ LOG_FILE = PROJECT_DIR / "logs" / "optimization_log.md"
 # 添加src路径
 sys.path.insert(0, str(PROJECT_DIR / "src"))
 
-# 添加chux_skills核心模块路径（多种尝试）
-chux_paths = [
-    os.path.expanduser('~/Desktop/openclaw/skills/chux-skills/core'),
-    os.path.expanduser('~/Desktop/openclaw/chux_skills/skills'),
-    '/Users/bytedance/Desktop/openclaw/skills/chux-skills/core',
-    '/Users/bytedance/Desktop/openclaw/chux_skills/skills',
-]
-
-for chux_path in chux_paths:
-    if os.path.exists(chux_path):
-        sys.path.insert(0, chux_path)
-        break
-
-# 导入技能模块
+# 导入独立的API模块
 try:
-    from web_search import web_search
-    from ai_chat_integration import chat
+    from api_client import web_search, chat
     HAS_SKILLS = True
     print(f"✅ 技能模块已加载")
 except ImportError as e:
