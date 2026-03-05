@@ -198,16 +198,29 @@ def send_feishu_report(report: str):
     """发送飞书汇报"""
     log("📱 发送飞书汇报...")
 
-    # 使用OpenClaw的message工具发送
     try:
-        # 这里需要通过OpenClaw的消息系统发送
-        # 暂时保存到文件，由主进程读取
+        # 使用 OpenClaw 的 message 命令发送
+        # 保存到文件供外部读取
         report_file = PROJECT_DIR / ".last_report.txt"
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write(report)
 
-        log("✅ 汇报已保存")
-        return True
+        # 通过 subprocess 调用 OpenClaw 发送
+        # 使用 heredoc 方式传递多行文本
+        import subprocess
+        result = subprocess.run(
+            ['openclaw', 'message', 'send', '--to', 'ou_0ada9070d78305377e8eff94a2fcf828', '--message', report],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            log("✅ 飞书汇报已发送")
+            return True
+        else:
+            log(f"⚠️ 飞书汇报发送失败: {result.stderr[:100]}")
+            return False
 
     except Exception as e:
         log(f"❌ 汇报失败: {e}")
