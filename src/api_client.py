@@ -39,10 +39,11 @@ def chat(prompt: str, temperature: float = 0.7) -> str:
 def web_search(query: str, limit: int = 3) -> list:
     """模拟网络搜索（返回示例结果）"""
     # 由于实际搜索需要API，这里返回示例
+    # 返回字典列表，而不是对象列表
     return [
-        {"title": f"AI视频生成技术{query}", "url": "https://example.com/1", "snippet": "文本转视频的最新进展"},
-        {"title": f"故事转视频{query}", "url": "https://example.com/2", "snippet": "自动化视频生成方案"},
-        {"title": f"视频生成API{query}", "url": "https://example.com/3", "snippet": "主流视频生成服务对比"},
+        {"title": f"AI视频生成技术 - {query}", "url": "https://example.com/1", "snippet": "文本转视频的最新进展"},
+        {"title": f"故事转视频方案 - {query}", "url": "https://example.com/2", "snippet": "自动化视频生成方案"},
+        {"title": f"视频生成API对比 - {query}", "url": "https://example.com/3", "snippet": "主流视频生成服务对比"},
     ][:limit]
 
 

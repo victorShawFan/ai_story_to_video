@@ -64,8 +64,12 @@ def search_similar_projects():
         for kw in keywords[:2]:  # 限制搜索次数
             try:
                 search_results = web_search(kw, limit=3)
+                # web_search返回字典列表，不是对象列表
                 for r in search_results:
-                    results.append(f"- [{r.title}]({r.url}): {r.snippet[:100]}")
+                    title = r.get('title', '未知标题')
+                    url = r.get('url', '#')
+                    snippet = r.get('snippet', '')[:100]
+                    results.append(f"- [{title}]({url}): {snippet}")
             except Exception as e:
                 results.append(f"- 搜索'{kw}'失败: {e}")
 
