@@ -8,15 +8,19 @@ import time
 # ========== API Keys ==========
 ARK_API_KEY = "3a94493f-bad6-4fa2-bac5-fe31b11b014c"
 VOLC_TTS_API_KEY = "ca38abe1-3265-4e36-81b7-6bd5aace7e9a"
-ARK_VIDEO_API_KEY = "32c7cdae-ee02-4b5d-9c0f-21648ac7f4ee"
+ARK_IMAGE_API_KEY = "3a94493f-bad6-4fa2-bac5-fe31b11b014c"
+ARK_VIDEO_API_KEY = "32c7cdae-ee02-4b5d-9c0f-21648ac7f4ee"  # 待确认视频Endpoint
 
 # ========== API Endpoints ==========
 ARK_TEXT_URL = "https://ark-cn-beijing.bytedance.net/api/v3/chat/completions"
 TTS_URL = "https://openspeech.bytedance.com/api/v2/tts"
-VIDEO_URL = "https://ark.cn-beijing.volces.com/api/v3/video/generation"
+IMAGE_URL = "https://ark-cn-beijing.bytedance.net/api/v3/images/generations"
+VIDEO_URL = "https://ark-cn-beijing.bytedance.net/api/v3/video/generation"  # 待确认
 
 # ========== 模型配置 ==========
 TEXT_MODEL = "ep-20251217231801-pn7p7"  # doubao-1.8
+IMAGE_MODEL = "ep-20251203164850-hsqkr"  # doubao-seedream-4-5
+IMAGE_SIZE = "1920x1920"
 
 
 def call_text_api(prompt: str, model: str = TEXT_MODEL) -> str:
@@ -90,6 +94,52 @@ def call_tts_api(text: str, out_path: str, speaker: str = "zh_female_xiaohe_uran
         wf.setframerate(sample_rate)
         wf.writeframes(bytes(pcm))
     
+    return out_path
+
+
+def call_image_api(prompt: str, out_path: str, size: str = IMAGE_SIZE) -> str:
+    """调用图片生成 API"""
+    import base64
+    
+    headers = {
+        "Authorization": f"Bearer {ARK_IMAGE_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": IMAGE_MODEL,
+        "prompt": prompt,
+        "size": size,
+        "response_format": "url"
+    }
+    
+    try:
+        resp = requests.post(IMAGE_URL, headers=headers, json=payload, timeout=120)
+        if resp.status_code == 200:
+            data = resp.json()
+            if "data" in data and data["data"]:
+                img_url = data["data"][0].get("url")
+                if img_url:
+                    # 下载图片
+                    img_resp = requests.get(img_url, timeout=60)
+                    with open(out_path, "wb") as f:
+                        f.write(img_resp.content)
+                    return out_path
+                # 也支持base64
+                b64 = data["data"][0].get("b64_json")
+                if b64:
+                    img_bytes = base64.b64decode(b64)
+                    with open(out_path, "wb") as f:
+                        f.write(img_bytes)
+                    return out_path
+    except Exception as e:
+        print(f"图片生成失败: {e}")
+    
+    # 降级：返回1x1透明PNG
+    png_1x1 = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/ep5ZgAAAABJRU5ErkJggg=="
+    )
+    with open(out_path, "wb") as f:
+        f.write(png_1x1)
     return out_path
 
 
