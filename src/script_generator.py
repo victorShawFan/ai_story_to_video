@@ -7,14 +7,7 @@
 import json
 from dataclasses import dataclass
 from typing import List, Optional
-import sys
-import os
-
-# 添加 chux_skills 核心模块路径
-sys.path.insert(0, os.path.expanduser('~/Desktop/openclaw/skills/chux-skills/core'))
-
-from ai_chat_integration import chat
-from pydantic import BaseModel, Field
+from api_client import call_text_api
 
 
 @dataclass
@@ -29,148 +22,104 @@ class Storyboard:
 @dataclass
 class Script:
     """剧本"""
-    scene_index: int                # 幕序号
-    narration: str                  # 旁白/台词
-    storyboards: List[Storyboard]   # 分镜列表
-    total_duration: float           # 总时长
-    style: str                      # 风格描述
-
-
-class ScriptResult(BaseModel):
-    """AI返回的结构化结果"""
-    narration: str = Field(..., description="旁白或台词")
-    storyboards: List[dict] = Field(..., description="分镜列表")
-    style: str = Field(default="电影质感", description="画面风格")
-
-
-# 系统提示词
-SYSTEM_PROMPT = """你是一个专业的影视剧本创作专家。你的任务是根据提供的文本片段，生成适合视频展示的剧本和分镜。
-
-要求：
-1. 生成简洁的旁白或台词（适合配音）
-2. 设计2-3个分镜，每个分镜包含：
-   - shot_number: 镜头序号
-   - description: 画面描述（具体的视觉内容）
-   - camera_movement: 镜头运动（如：推镜头、拉镜头、跟拍、固定镜头）
-   - duration: 时长（秒，总和约12秒）
-3. 指定画面风格（如：电影质感、复古港风、现代都市等）
-
-输出JSON格式：
-{
-  "narration": "旁白内容",
-  "storyboards": [
-    {"shot_number": 1, "description": "画面描述", "camera_movement": "推镜头", "duration": 4.0},
-    ...
-  ],
-  "style": "风格描述"
-}
-"""
+    scene_index: int            # 幕序号
+    original_text: str          # 原始文本
+    narration: str              # 旁白文本
+    visual_description: str     # 视觉描述
+    storyboards: List[Storyboard]  # 分镜列表
+    mood: str                   # 氛围/情绪
+    estimated_duration: float   # 预估总时长
 
 
 def generate_script(scene_text: str, scene_index: int = 0) -> Script:
     """
-    为一幕生成剧本和分镜
+    为一幕文本生成剧本和分镜
 
     Args:
-        scene_text: 一幕的文本
-        scene_index: 幕序号
+        scene_text: 场景文本
+        scene_index: 场景序号
 
     Returns:
-        Script对象
+        Script 对象
     """
-    # 构建提示词
-    prompt = f"{SYSTEM_PROMPT}\n\n文本内容：\n{scene_text}"
+    prompt = f"""你是一个专业的影视剧本编剧。请为以下场景文本生成剧本和分镜描述。
+
+场景文本：
+{scene_text}
+
+请按以下 JSON 格式输出（不要包含 ```json 标记）：
+{{
+    "narration": "旁白文本（适合朗读）",
+    "visual_description": "整体视觉描述",
+    "mood": "氛围（如：紧张、温馨、神秘）",
+    "storyboards": [
+        {{
+            "shot_number": 1,
+            "description": "画面描述",
+            "camera_movement": "镜头运动（如：推镜头、拉镜头、固定）",
+            "duration": 3.0
+        }}
+    ]
+}}
+
+要求：
+1. 旁白要简洁生动，适合配音
+2. 视觉描述要具体，包含场景、人物、动作
+3. 分镜建议 2-4 个，总时长控制在 10-15 秒
+4. 只输出 JSON，不要其他内容"""
 
     try:
-        # 调用AI生成
-        result = chat(
-            prompt=prompt,
-            response_format=ScriptResult
-        )
-
-        if isinstance(result, str):
-            # 如果返回字符串，尝试解析JSON
-            try:
-                data = json.loads(result)
-                result = ScriptResult(**data)
-            except:
-                # 解析失败，使用默认值
-                result = ScriptResult(
-                    narration=scene_text[:100],
-                    storyboards=[{
-                        "shot_number": 1,
-                        "description": scene_text[:50],
-                        "camera_movement": "固定镜头",
-                        "duration": 12.0
-                    }],
-                    style="电影质感"
-                )
-
-        # 转换为Storyboard对象
-        storyboards = []
-        total_duration = 0.0
-        for sb in result.storyboards:
-            storyboard = Storyboard(
-                shot_number=sb.get("shot_number", 1),
+        response = call_text_api(prompt)
+        
+        # 清理响应
+        response = response.strip()
+        if response.startswith("```"):
+            response = response.split("\n", 1)[1]
+        if response.endswith("```"):
+            response = response.rsplit("\n", 1)[0]
+        response = response.strip()
+        
+        data = json.loads(response)
+        
+        storyboards = [
+            Storyboard(
+                shot_number=sb.get("shot_number", i + 1),
                 description=sb.get("description", ""),
-                camera_movement=sb.get("camera_movement", "固定镜头"),
-                duration=sb.get("duration", 4.0)
+                camera_movement=sb.get("camera_movement", "固定"),
+                duration=sb.get("duration", 3.0)
             )
-            storyboards.append(storyboard)
-            total_duration += storyboard.duration
-
+            for i, sb in enumerate(data.get("storyboards", []))
+        ]
+        
+        total_duration = sum(sb.duration for sb in storyboards)
+        
         return Script(
             scene_index=scene_index,
-            narration=result.narration,
+            original_text=scene_text,
+            narration=data.get("narration", scene_text),
+            visual_description=data.get("visual_description", ""),
             storyboards=storyboards,
-            total_duration=total_duration,
-            style=result.style
+            mood=data.get("mood", "中性"),
+            estimated_duration=total_duration
         )
-
+        
     except Exception as e:
-        # 错误处理：返回基本剧本
+        # 降级：返回简单剧本
         return Script(
             scene_index=scene_index,
-            narration=scene_text[:100],
-            storyboards=[Storyboard(
-                shot_number=1,
-                description=scene_text[:50],
-                camera_movement="固定镜头",
-                duration=12.0
-            )],
-            total_duration=12.0,
-            style="电影质感"
+            original_text=scene_text,
+            narration=scene_text,
+            visual_description=scene_text,
+            storyboards=[Storyboard(1, scene_text, "固定", 12.0)],
+            mood="中性",
+            estimated_duration=12.0
         )
-
-
-def generate_scripts_batch(scene_texts: List[str]) -> List[Script]:
-    """
-    批量生成剧本
-
-    Args:
-        scene_texts: 多幕文本列表
-
-    Returns:
-        Script列表
-    """
-    scripts = []
-    for i, text in enumerate(scene_texts):
-        script = generate_script(text, scene_index=i)
-        scripts.append(script)
-    return scripts
 
 
 if __name__ == "__main__":
     # 测试
-    sample_text = "雨夜，霓虹灯闪烁在香港的街头。一个穿着皮夹克的年轻人匆匆走过。"
-
-    script = generate_script(sample_text)
-
-    print(f"幕{script.scene_index + 1}")
+    test_text = "雨夜，霓虹灯闪烁在香港的街头。一个穿着皮夹克的年轻人匆匆走过。"
+    script = generate_script(test_text)
     print(f"旁白: {script.narration}")
-    print(f"风格: {script.style}")
-    print(f"总时长: {script.total_duration}秒")
-    print("\n分镜:")
-    for sb in script.storyboards:
-        print(f"  镜头{sb.shot_number}: {sb.description}")
-        print(f"    运动: {sb.camera_movement}, 时长: {sb.duration}秒")
+    print(f"分镜数: {len(script.storyboards)}")
+    print(f"预估时长: {script.estimated_duration}秒")

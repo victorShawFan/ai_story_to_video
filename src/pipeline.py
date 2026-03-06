@@ -127,30 +127,18 @@ class StoryToVideoPipeline:
 
     def _read_file(self, file_path: str) -> str:
         """读取文件内容"""
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
 
 
-def main():
-    """主函数"""
-    import argparse
-
-    parser = argparse.ArgumentParser(description='AI故事转视频')
-    parser.add_argument('input', help='输入文件路径（TXT/MD）')
-    parser.add_argument('-o', '--output', default='./output', help='输出目录')
-    parser.add_argument('--no-audio', action='store_true', help='不生成配音')
-
-    args = parser.parse_args()
-
-    # 创建管道
-    pipeline = StoryToVideoPipeline(output_dir=args.output)
-
-    # 执行处理
-    result = pipeline.process(args.input, generate_audio_flag=not args.no_audio)
-
-    # 退出码
-    sys.exit(0 if result.success else 1)
-
-
 if __name__ == "__main__":
-    main()
+    # 简单测试
+    pipeline = StoryToVideoPipeline(output_dir="./test_output")
+    
+    # 创建测试文件
+    test_file = "./test_story.txt"
+    with open(test_file, "w", encoding="utf-8") as f:
+        f.write("雨夜，霓虹灯闪烁在香港的街头。\n\n一个穿着皮夹克的年轻人匆匆走过。\n\n街角的咖啡店里，一个女孩正在等待。")
+    
+    result = pipeline.process(test_file)
+    print(f"\n结果: {'成功' if result.success else '失败'}")
